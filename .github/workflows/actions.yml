@@ -30,6 +30,7 @@ jobs:
   test-artifacts:
     name: Test Open All
     runs-on: ubuntu-latest
+    needs: [ make-artifacts ]
     steps:
       - uses: actions/checkout@v4
         with:
