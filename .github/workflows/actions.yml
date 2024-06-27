@@ -38,13 +38,35 @@ jobs:
           name: ${{ matrix.os }}-${{ matrix.python-version }}-artifact
           path: ${{ matrix.os }}-${{ matrix.python-version }}-testfolder/*.txt
 
-  test-artifacts:
-    name: Test Open All
+  merge-artifacts:
+    name: Merge all the artifacts
     runs-on: ubuntu-latest
     needs: [ make-artifacts ]
     steps:
       - uses: actions/download-artifact@v4
         with:
+          path: allfiles
+      - name: merge the files
+        run: |
+          mkdir sources
+          for dir in allfiles/*; do
+            if [ -d "$dir" ]; then
+                cp -r "$dir"/* sources/
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sources
+          path: sources
+
+  test-artifacts:
+    name: Test Open All
+    runs-on: ubuntu-latest
+    needs: [ merge-artifacts ]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sources
           path: allarts
       - name: see artifacts
         run: ls allarts
