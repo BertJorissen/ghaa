@@ -1,0 +1,38 @@
+name: actions
+
+on: [push]
+permissions:
+  contents: write
+
+
+jobs:
+  make-artifacts:
+    name: Test make on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-12, macos-14, windows-latest ]
+        python-version: [ "3.10", "3.11" ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: copy the testfile
+        run: |
+          mkdir ${{ matrix.os }}-${{ matrix.python-version }}-testfolder
+          cp testfile ${{ matrix.os }}-${{ matrix.python-version }}-testfolder/${{ matrix.os }}-${{ matrix.python-version }}-testfile-1.txt
+          cp testfile ${{ matrix.os }}-${{ matrix.python-version }}-testfolder/${{ matrix.os }}-${{ matrix.python-version }}-testfile-2.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-${{ matrix.python-version }}-artifact
+          path: ${{ matrix.os }}-${{ matrix.python-version }}-testfolder/*.txt
+
+  test-artifacts:
+    name: Test Open All
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: allarts
+      - name: see artifacts
+        run: ls allarts
