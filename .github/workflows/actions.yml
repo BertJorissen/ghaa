@@ -11,62 +11,53 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            python-version: "3.10"
-          - os: ubuntu-latest
-            python-version: "3.11"
-          - os: ubuntu-latest
-            python-version: "3.12"
-          - os: macos-12
-            python-version: "3.11"
-          - os: macos-14
-            python-version: "3.11"
-          - os: windows-latest
-            python-version: "3.11"
+        os: [ubuntu-latest, windows-latest, macos-12, macos-14]
+        python-version: [3.9, 3.10, 3.11, 3.12]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: copy the testfile
+      - name: Install pybinding and test using normal installation
+        continue-on-error: true
+        run:
+          pip list
+          pip install pybinding-dev
+          pip list
+          python -c "import pybinding as pb; exit(pb.tests())"
+      - name: Install matplotlib 3.9.1 and test
+        continue-on-error: true
         run: |
-          mkdir ${{ matrix.os }}-${{ matrix.python-version }}-testfolder
-          cp testfile ${{ matrix.os }}-${{ matrix.python-version }}-testfolder/${{ matrix.os }}-${{ matrix.python-version }}-testfile-1.txt
-          cp testfile ${{ matrix.os }}-${{ matrix.python-version }}-testfolder/${{ matrix.os }}-${{ matrix.python-version }}-testfile-2.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-${{ matrix.python-version }}-artifact
-          path: ${{ matrix.os }}-${{ matrix.python-version }}-testfolder/*.txt
-
-  merge-artifacts:
-    name: Merge all the artifacts
-    runs-on: ubuntu-latest
-    needs: [ make-artifacts ]
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: allfiles
-      - name: merge the files
+          pip uninstall matplotlib -y
+          pip install matplotlib==3.9.1
+          pip list
+          python -c "import pybinding as pb; exit(pb.tests())"
+      - name: Download and unzip matplotlib 3.9.1
         run: |
-          mkdir sources
-          for dir in allfiles/*; do
-            if [ -d "$dir" ]; then
-                cp -r "$dir"/* sources/
-            fi
-          done
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sources
-          path: sources
-
-  test-artifacts:
-    name: Test Open All
-    runs-on: ubuntu-latest
-    needs: [ merge-artifacts ]
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: sources
-          path: allarts
-      - name: see artifacts
-        run: ls allarts
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            curl https://github.com/matplotlib/matplotlib/archive/refs/tags/v3.9.1.zip
+            tar -xf v3.9.1.zip -C mpl
+          elif [[ "${{ matrix.os }}" == "macos-12" ]] || [[ "${{ matrix.os }}" == "macos-14" ]]; then
+            curl https://github.com/matplotlib/matplotlib/archive/refs/tags/v3.9.1.zip
+            unzip v3.9.1.zip -d mpl
+          else
+            wget https://github.com/matplotlib/matplotlib/archive/refs/tags/v3.9.1.zip
+            unzip v3.9.1.zip -d mpl
+          fi
+      - name: install matplotlib 3.9.1 and test
+        run: |
+          pip uninstall matplotlib -y
+          pip install build
+          pip list
+          cd mpl/matplotlib-3.9.1
+          python -m build --wheel
+          pip install dist/*.whl
+          pip list
+          python -c "import pybinding as pb; exit(pb.tests())"
+      - name: repair wheaal and test
+        run: |
+          pip uninstall matplotlib -y
+          pip install delvewheel
+          pip list
+          cd mpl/matplotlib-3.9.1
+          mkdir out
+          delvewheel repait -w out dist/*.whl
+          pip install out/*.whl
+          pip list
+          python -c "import pybinding as pb; exit(pb.tests())"
